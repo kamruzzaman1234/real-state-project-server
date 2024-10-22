@@ -15,7 +15,7 @@ require('dotenv').config()
 // Middleware
 app.use(cors({
     origin: [
-      "https://rea-estate-project-8538e.web.app/",
+      "https://rea-estate-project-8538e.web.app",
       "https://rea-estate-project-8538e.firebaseapp.com"
     ],
     credentials: true
