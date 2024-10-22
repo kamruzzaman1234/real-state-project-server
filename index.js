@@ -14,19 +14,54 @@ require('dotenv').config()
 
 // Middleware
 app.use(cors({
-    origin: ['http://localhost:5173'],
+    origin: [
+      "https://rea-estate-project-8538e.web.app",
+      "https://rea-estate-project-8538e.firebaseapp.com"
+    ],
     credentials: true
 }))
 app.use(express.json())
 app.use(cookieParser())
 
 // Middleware 
-
-const loger = async(req,res,next)=>{
+// Eta host name and Url name Check korbe kon jayegaye data ta load hosce
+const logger = async(req,res,next)=>{
     console.log('Called', req.host, req.originalUrl)
     next()
 }
+// VerifyToken ami jegula dekhate saibo segulai dekhte parbe sudhu eta use kore
+const verifyToken = async(req, res, next)=>{
+  const token = req.cookies?.token
+  console.log("Value of the token is ",token)
+    if(!token){
+      return res.status(401).send({
+        message: "not authorized"
+      })
+    }
 
+    jwt.verify(token, process.env.ACCESS_JSON_TOKEN, (err, decoded)=>{
+        if(err){
+          console.log(err)
+          return res.status(401).send({message: 'un authorize'})
+        }
+        console.log('Value in the token is', decoded)
+        req.user = decoded
+         next()
+    })
+    
+ 
+}
+
+// const verifyToken = async(req,res,next)=>{
+//   const token = req.cookies?.token ;
+//   console.log(token)
+//   if(!token){
+//     return res.status(401).send({message: 'unauthorized access'})
+//   }
+//   jwt.verify(token, process.env.ACCESS_JSON_TOKEN, (err, decoded)=>{
+//     return res.status(401).send({message: "un authorized access"})
+//   })
+// }
 app.get('/', (req,res)=>{
     res.send("Hello Server !!")
 })
@@ -51,14 +86,15 @@ async function run() {
     // Send a ping to confirm a successful connection
 
     const realEstateCollection = client.db('real_estate_proparties').collection('proparties_data')
+    const allProperty = client.db('real_estate_proparties').collection('all_property');
     const bookingPropertyCollection = client.db('real_estate_proparties').collection('bookingProperty')
     // create Web json token
-    app.post('/jwt', (req, res)=>{
+    app.post('/jwt', logger, (req, res)=>{
       const user = req.body 
       console.log(user)
       const token = jwt.sign(user, process.env.ACCESS_JSON_TOKEN,
          {expiresIn: '1h'})
-         console.log("Token cookie is", token)
+         
         res.
       cookie('token',  token, {
         httpOnly: true,
@@ -67,12 +103,26 @@ async function run() {
       .send({success: true})
     })
 
+    app.post('logout', async(req,res)=>{
+        const user = req.body
+        console.log(user)
+        res.clearCookie('token', { maxAge: 0 }).send({ success: true });
+
+    })
+
     // Show the data in client get 
-    app.get('/proparties', async(req,res)=>{
+    app.get('/proparties', logger, async(req,res)=>{
         const cursor = realEstateCollection.find()
         const result = await cursor.toArray()
         res.send(result);
     })
+
+    // app.get('/allProperty', async(req,res)=>{
+    //   const cursor = allProperty.find()
+    //   const result = await cursor.toArray()
+    //   res.send(result)
+    //   console.log(result)
+    // })
 
     // Show the data in client get
     app.get('/proparties/:id', async(req, res)=>{
@@ -83,20 +133,24 @@ async function run() {
         }
         const result = await realEstateCollection.findOne(query, option)
         res.send(result)
+        console.log("Booking Property is ", result)
     })
 
     // Post Data In Client
-    app.post('/bookings', async(req, res)=>{
+    app.post('/bookings', logger, verifyToken, async(req, res)=>{
       const booking = req.body
       // console.log(booking)
       const result = await bookingPropertyCollection.insertOne(booking)
       res.send(result)
     })
 
-    app.get('/bookings', async(req, res) => {
+    app.get('/bookings', logger, verifyToken, async(req, res) => {
       console.log('Email:', req.query.email);
-      console.log("Token cookie is ", req.cookies.token)
-    
+      // console.log("Token cookie is ", req.cookies.token)
+      console.log('User is the valid token is', req.user)
+      if(req.query.email !== req.user.email){
+        return res.status(403).send({message: "forbidden access"})
+      }
       let query = {};
       if (req.query?.email) {
         query = { email: req.query.email };
@@ -104,10 +158,11 @@ async function run() {
     
       const result = await bookingPropertyCollection.find(query).toArray();
       res.send(result);
+      
     });
 
      // Delete Korar Get Method
-     app.delete('/bookings/:id', async(req,res)=>{
+     app.delete('/bookings/:id', logger, async(req,res)=>{
       const id = req.params.id 
       const query = {_id : new ObjectId(id)}
       const result = await bookingPropertyCollection.deleteOne(query)
@@ -116,7 +171,7 @@ async function run() {
   })
 
       // Update / patch 
-      app.patch('/bookings/:id', async(req,res)=>{
+      app.patch('/bookings/:id', logger, async(req,res)=>{
         const id = req.params.id
         const filter = {_id: new ObjectId(id)}
         const updateBooking = req.body 
