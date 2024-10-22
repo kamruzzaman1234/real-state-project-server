@@ -16,7 +16,7 @@ require('dotenv').config()
 app.use(cors({
     origin: [
       "https://rea-estate-project-8538e.web.app/",
-      "https://rea-estate-project-8538e.firebaseapp.com/"
+      "https://rea-estate-project-8538e.firebaseapp.com"
     ],
     credentials: true
 }))
