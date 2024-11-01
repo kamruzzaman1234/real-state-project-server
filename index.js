@@ -14,14 +14,18 @@ require('dotenv').config()
 
 // Middleware
 app.use(cors({
-    origin: [
-      "https://rea-estate-project-8538e.web.app",
-      "https://rea-estate-project-8538e.firebaseapp.com/"
-    ],
-    credentials: true
+  origin:[
+    "http://localhost:5173",
+    "https://rea-estate-project-8538e.web.app",
+    "https://rea-estate-project-8538e.firebaseapp.com"
+
+  ]
 }))
 app.use(express.json())
 app.use(cookieParser())
+
+
+
 
 // Middleware 
 // Eta host name and Url name Check korbe kon jayegaye data ta load hosce
@@ -32,6 +36,7 @@ const logger = async(req,res,next)=>{
 // VerifyToken ami jegula dekhate saibo segulai dekhte parbe sudhu eta use kore
 const verifyToken = async(req, res, next)=>{
   const token = req.cookies?.token
+  console.log(token)
   console.log("Value of the token is ",token)
     if(!token){
       return res.status(401).send({
@@ -40,6 +45,7 @@ const verifyToken = async(req, res, next)=>{
     }
 
     jwt.verify(token, process.env.ACCESS_JSON_TOKEN, (err, decoded)=>{
+      console.log(decoded)
         if(err){
           console.log(err)
           return res.status(401).send({message: 'un authorize'})
@@ -79,14 +85,20 @@ const client = new MongoClient(uri, {
   }
 });
 
+const cookieOption = {
+  httpOnly: true,
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+  secure: process.env.NODE_ENV === "production" ? true : false
+}
+
 async function run() {
   try {
     
-    await client.connect();
+    // await client.connect();
     // Send a ping to confirm a successful connection
 
     const realEstateCollection = client.db('real_estate_proparties').collection('proparties_data')
-    const allProperty = client.db('real_estate_proparties').collection('all_property');
+    // const allProperty = client.db('real_estate_proparties').collection('all_property');
     const bookingPropertyCollection = client.db('real_estate_proparties').collection('bookingProperty')
     // create Web json token
     app.post('/jwt', logger, (req, res)=>{
@@ -96,35 +108,33 @@ async function run() {
          {expiresIn: '1h'})
          
         res.
-      cookie('token',  token, {
-        httpOnly: true,
-        secure: false
-      })
+      cookie('token',  token, cookieOption)
       .send({success: true})
     })
 
-    app.post('logout', async(req,res)=>{
-        const user = req.body
-        console.log(user)
-        res.clearCookie('token', { maxAge: 0 }).send({ success: true });
+    // app.post('/logout', async(req,res)=>{
+    //     const user = req.body
+    //     console.log(user)
+    //     res.clearCookie('token', { ...cookieOption , maxAge: 0 }).send({ success: true });
 
-    })
-
-    // Show the data in client get 
-    app.get('/proparties', logger, async(req,res)=>{
-        const cursor = realEstateCollection.find()
-        const result = await cursor.toArray()
-        res.send(result);
-    })
-
-    // app.get('/allProperty', async(req,res)=>{
-    //   const cursor = allProperty.find()
-    //   const result = await cursor.toArray()
-    //   res.send(result)
-    //   console.log(result)
     // })
 
-    // Show the data in client get
+    // Show the data in client get 
+    app.get('/proparties', async(req,res)=>{
+        try {
+          const cursor = realEstateCollection.find()
+          const result = await cursor.toArray()
+          res.send(result);
+          console.log(result)
+        } catch (error) {
+          res.status(200).json({
+            message:error,
+            status:false
+          })
+        }
+    })
+
+   
     app.get('/proparties/:id', async(req, res)=>{
         const id = req.params.id 
         const query = {_id: new ObjectId(id)}
@@ -189,7 +199,7 @@ async function run() {
 
 
 
-    await client.db("admin").command({ ping: 1 });
+    // await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
     // Ensures that the client will close when you finish/error
