@@ -19,7 +19,8 @@ app.use(cors({
     "https://rea-estate-project-8538e.web.app",
     "https://rea-estate-project-8538e.firebaseapp.com"
 
-  ]
+  ],
+  credentials:true,
 }))
 app.use(express.json())
 app.use(cookieParser())
