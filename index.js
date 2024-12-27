@@ -148,12 +148,20 @@ async function run() {
     })
 
     // Post Data In Client
-    app.post('/bookings', logger, verifyToken, async(req, res)=>{
-      const booking = req.body
-      // console.log(booking)
-      const result = await bookingPropertyCollection.insertOne(booking)
-      res.send(result)
-    })
+    app.post('/bookings', async (req, res) => {
+      const booking = req.body;
+      if (!booking) {
+          return res.status(400).send({ message: "Invalid booking data" });
+      }
+      try {
+          const result = await bookingPropertyCollection.insertOne(booking);
+          res.status(201).send({ success: true, insertedId: result.insertedId });
+      } catch (error) {
+          console.error("Error saving booking:", error);
+          res.status(500).send({ success: false, message: "Internal Server Error" });
+      }
+  });
+  
 
     app.get('/bookings', logger, verifyToken, async(req, res) => {
       console.log('Email:', req.query.email);
