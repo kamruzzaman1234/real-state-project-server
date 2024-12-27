@@ -163,46 +163,48 @@ async function run() {
   });
   
 
-    app.get('/bookings', logger, verifyToken, async(req, res) => {
-      console.log('Email:', req.query.email);
-      // console.log("Token cookie is ", req.cookies.token)
-      console.log('User is the valid token is', req.user)
-      if(req.query.email !== req.user.email){
-        return res.status(403).send({message: "forbidden access"})
-      }
-      let query = {};
-      if (req.query?.email) {
-        query = { email: req.query.email };
-      }
-    
-      const result = await bookingPropertyCollection.find(query).toArray();
-      res.send(result);
-      
-    });
+  app.get('/bookings', verifyToken, async (req, res) => {
+    const email = req.query.email;
+    if (!email) {
+        return res.status(400).send({ message: "Email is required" });
+    }
 
-     // Delete Korar Get Method
-     app.delete('/bookings/:id', logger, async(req,res)=>{
-      const id = req.params.id 
-      const query = {_id : new ObjectId(id)}
-      const result = await bookingPropertyCollection.deleteOne(query)
-      res.send(result)
-      console.log(result)
-  })
+    try {
+        const bookings = await bookingPropertyCollection.find({ email }).toArray();
+        res.status(200).send(bookings);
+    } catch (error) {
+        console.error("Error fetching bookings:", error);
+        res.status(500).send({ message: "Internal Server Error" });
+    }
+});
 
-      // Update / patch 
-      app.patch('/bookings/:id', logger, async(req,res)=>{
-        const id = req.params.id
-        const filter = {_id: new ObjectId(id)}
-        const updateBooking = req.body 
-        console.log(updateBooking)
-        const updateDoc = {
-          $set: {
-            status: updateBooking.status
-          }
-        }
-        const result = await bookingPropertyCollection.updateOne(filter, updateDoc)
-        res.send(result)
-      })
+app.delete('/bookings/:id', async (req, res) => {
+    const id = req.params.id;
+    try {
+        const result = await bookingPropertyCollection.deleteOne({ _id: new ObjectId(id) });
+        res.status(200).send(result);
+    } catch (error) {
+        console.error("Error deleting booking:", error);
+        res.status(500).send({ message: "Internal Server Error" });
+    }
+});
+
+app.patch('/bookings/:id', async (req, res) => {
+    const id = req.params.id;
+    const { status } = req.body;
+
+    try {
+        const result = await bookingPropertyCollection.updateOne(
+            { _id: new ObjectId(id) },
+            { $set: { status } }
+        );
+        res.status(200).send(result);
+    } catch (error) {
+        console.error("Error updating booking:", error);
+        res.status(500).send({ message: "Internal Server Error" });
+    }
+});
+
       
   
 
